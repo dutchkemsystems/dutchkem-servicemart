@@ -1,0 +1,12 @@
+{
+  "name": "dutchkem-servicemart",
+  "version": "1.0.0",
+  "description": "Dutchkem Ventures ServiceMart — One Platform. 8 Services. Your Business Solution.",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

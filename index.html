@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dutchkem Ventures ServiceMart</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Supabase Configuration -->
+  <script>
+    // ✅ PRODUCTION SUPABASE CONFIG
+    const SUPABASE_URL = 'https://alegohpyvhdpgxklwxln.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_yb_7-q07jd2eMdefizqPhg_CccFTsA1';
+    
+    // Initialize Supabase client
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Auth state listener
+    _supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        const { data: profile } = await _supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        state.user = {
+          id: session.user.id,
+          email: session.user.email,
+          name: profile?.full_name || session.user.email.split('@')[0],
+          phone: profile?.phone || '',
+          role: profile?.role || 'user'
+        };
+        onLogin();
+      } else if (event === 'SIGNED_OUT') {
+        logout();
+      }
+    });
+  </script>
+  
+  <!-- Font Awesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styles -->
+  <style>
+    :root {
+      --gold: #C9A84C; --gold-light: #F0D080; --gold-dark: #8B6914;
+      --navy: #0D1B2A; --navy-mid: #162236; --navy-light: #1E3250;
+      --cream: #FAF6EE; --cream-dark: #F0E8D8;
+      --success: #1D9E75; --danger: #D85A30;
+      --text-main: #0D1B2A; --text-muted: #5F6B7A;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--navy);
+      color: var(--cream);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    h1,h2,h3,h4 { font-family: 'Playfair Display', serif; }
+    .hero-bg {
+      background: linear-gradient(135deg, #0D1B2A 0%, #162236 50%, #1a2d40 100%);
+      position: relative; overflow: hidden;
+    }
+    .hero-bg::before {
+      content:''; position:absolute; inset:0;
+      background: radial-gradient(ellipse at 70% 30%, rgba(201,168,76,0.12) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 80%, rgba(201,168,76,0.07) 0%, transparent 50%);
+      pointer-events:none;
+    }
+    .gold-line { background: linear-gradient(90deg, transparent, var(--gold), transparent); height:1px; }
+    .nav-bar {
+      background: rgba(13,27,42,0.95); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+      position: sticky; top:0; z-index:100;
+    }
+    .service-card {
+      background: rgba(22,34,54,0.9); border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 16px; transition: all 0.3s ease; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .service-card::before {
+      content:''; position:absolute; inset:0;
+      background: linear-gradient(135deg, rgba(201,168,76,0.05) 0%, transparent 60%);
+      opacity:0; transition: opacity 0.3s;
+    }
+    .service-card:hover::before, .service-card.selected::before { opacity:1; }
+    .service-card:hover { border-color: rgba(201,168,76,0.5); transform:translateY(-3px); box-shadow:0 12px 40px rgba(0,0,0,0.3); }
+    .service-card.selected { border-color: var(--gold); box-shadow:0 0 0 2px rgba(201,168,76,0.25), 0 12px 40px rgba(0,0,0,0.3); }
+    .service-card.selected .check-badge { display:flex !important; }
+    .check-badge {
+      display:none; position:absolute; top:12px; right:12px;
+      width:28px; height:28px; border-radius:50%;
+      background: var(--gold); align-items:center; justify-content:center;
+      color: var(--navy); font-size:13px;
+    }
+    .modal-overlay {
+      position:fixed; inset:0; z-index:200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display:none; align-items:center; justify-content:center; padding:16px;
+    }
+    .modal-overlay.active { display:flex; }
+    .modal-box {
+      background: var(--navy-mid); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 20px; width:100%; max-width:560px;
+      max-height:90vh; overflow-y:auto; position:relative;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold) 0%, #E8C060 50%, var(--gold) 100%);
+      color: var(--navy); font-weight: 600; border: none; border-radius: 10px;
+      padding: 12px 28px; cursor: pointer; font-family:'DM Sans',sans-serif;
+      font-size:15px; transition: all 0.2s; letter-spacing:0.3px;
+    }
+    .btn-gold:hover { opacity:0.9; transform:translateY(-1px); box-shadow:0 6px 20px rgba(201,168,76,0.3); }
+    .btn-gold:active { transform:translateY(0); }
+    .btn-outline {
+      background: transparent; color: var(--gold);
+      border: 1px solid rgba(201,168,76,0.5); border-radius: 10px;
+      padding: 11px 24px; cursor: pointer; font-family:'DM Sans',sans-serif;
+      font-size:14px; transition: all 0.2s;
+    }
+    .btn-outline:hover { background: rgba(201,168,76,0.08); border-color: var(--gold); }
+    .form-input {
+      background: rgba(13,27,42,0.7); border: 1px solid rgba(201,168,76,0.2);
+      border-radius:10px; padding:11px 14px; color: var(--cream);
+      font-family:'DM Sans',sans-serif; font-size:14px; width:100%;
+      transition: border-color 0.2s; outline:none;
+    }
+    .form-input:focus { border-color: var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,0.1); }
+    .form-input::placeholder { color: rgba(250,246,238,0.35); }
+    .chat-wrap {
+      background: rgba(13,27,42,0.6); border: 1px solid rgba(201,168,76,0.15);
+      border-radius:16px; padding:20px; margin-top:20px;
+    }
+    .chat-msg { display:flex; gap:10px; margin-bottom:14px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .chat-avatar {
+      width:36px; height:36px; border-radius:50%; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-size:15px;
+    }
+    .bot-avatar { background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color:var(--navy); }
+    .user-avatar { background: rgba(201,168,76,0.15); color:var(--gold); border:1px solid rgba(201,168,76,0.3); }
+    .chat-bubble {
+      background: rgba(22,34,54,0.9); border: 1px solid rgba(201,168,76,0.12);
+      border-radius: 12px 12px 12px 3px; padding:11px 15px;
+      font-size:14px; line-height:1.6; max-width:85%;
+    }
+    .chat-bubble.user-msg {
+      background: rgba(201,168,76,0.1); border-color: rgba(201,168,76,0.25);
+      border-radius:12px 12px 3px 12px; margin-left:auto;
+    }
+    .chat-msg.user { flex-direction:row-reverse; }
+    .tab-btn { transition: all 0.2s; border-bottom:2px solid transparent; }
+    .tab-btn.active { border-bottom-color: var(--gold); color: var(--gold); }
+    .badge-gold { background: rgba(201,168,76,0.15); color: var(--gold-light); border: 1px solid rgba(201,168,76,0.3); border-radius:20px; padding:3px 12px; font-size:12px; }
+    .badge-green { background: rgba(29,158,117,0.15); color:#5DCAA5; border:1px solid rgba(29,158,117,0.3); border-radius:20px; padding:3px 12px; font-size:12px; }
+    .badge-red { background: rgba(216,90,48,0.15); color:#F0997B; border:1px solid rgba(216,90,48,0.3); border-radius:20px; padding:3px 12px; font-size:12px; }
+    .badge-blue { background: rgba(55,138,221,0.15); color:#85B7EB; border:1px solid rgba(55,138,221,0.3); border-radius:20px; padding:3px 12px; font-size:12px; }
+    .discount-banner {
+      background: linear-gradient(135deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.05) 100%);
+      border: 1px dashed rgba(201,168,76,0.4); border-radius:12px;
+      padding:12px 16px; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{border-color:rgba(201,168,76,0.4)} 50%{border-color:rgba(201,168,76,0.8)} }
+    .receipt-box {
+      background: white; color: #1a1a2e; border-radius:12px;
+      padding:28px; font-family:'DM Sans',sans-serif; font-size:13px; line-height:1.6;
+    }
+    .admin-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .admin-table th { background: rgba(201,168,76,0.1); color: var(--gold); padding:10px 14px; text-align:left; border-bottom:1px solid rgba(201,168,76,0.2); }
+    .admin-table td { padding:10px 14px; border-bottom:1px solid rgba(201,168,76,0.08); vertical-align:middle; }
+    .admin-table tr:hover td { background: rgba(201,168,76,0.04); }
+    .step-dot {
+      width:32px; height:32px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:600;
+      border:2px solid rgba(201,168,76,0.3);
+      color: rgba(250,246,238,0.4); transition: all 0.3s;
+    }
+    .step-dot.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.1); }
+    .step-dot.done { border-color: var(--success); background: rgba(29,158,117,0.15); color:#5DCAA5; }
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background: rgba(13,27,42,0.5); }
+    ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius:10px; }
+    .ticker { overflow:hidden; white-space:nowrap; }
+    .ticker-inner { display:inline-block; animation: ticker 25s linear infinite; }
+    @keyframes ticker { 0%{transform:translateX(100vw)} 100%{transform:translateX(-100%)} }
+    .spinner {
+      width:22px;height:22px; border:2px solid rgba(201,168,76,0.2);
+      border-top-color: var(--gold); border-radius:50%;
+      animation: spin 0.7s linear infinite; display:inline-block;
+    }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .upload-zone {
+      border:2px dashed rgba(201,168,76,0.3); border-radius:12px;
+      padding:28px; text-align:center; cursor:pointer; transition: all 0.2s;
+    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+    .toast {
+      position:fixed; bottom:24px; right:24px; z-index:999;
+      background: var(--navy-light); border: 1px solid rgba(201,168,76,0.3);
+      border-radius:12px; padding:14px 20px; font-size:14px;
+      min-width:280px; animation: slideIn 0.3s ease;
+      display:flex; align-items:center; gap:10px;
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+    .section-hidden { display:none !important; }
+    .auth-card {
+      background: rgba(22,34,54,0.95); border: 1px solid rgba(201,168,76,0.25);
+      border-radius:20px; padding:40px; width:100%;max-width:440px; margin:0 auto;
+    }
+    .progress-bar-fill {
+      height:4px; background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+      border-radius:4px; transition: width 0.4s ease;
+    }
+    .loading { opacity:0.6; pointer-events:none; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav-bar px-6 py-4 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-full flex items-center justify-center" style="background:linear-gradient(135deg,var(--gold-dark),var(--gold))">
+      <i class="fas fa-gem text-sm" style="color:var(--navy)"></i>
+    </div>
+    <div>
+      <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;line-height:1.1;color:var(--gold)">Dutchkem Ventures</div>
+      <div style="font-size:10px;color:rgba(250,246,238,0.5);letter-spacing:1.5px;text-transform:uppercase">ServiceMart</div>
+    </div>
+  </div>
+  <div class="hidden md:flex items-center gap-6 text-sm" style="color:rgba(250,246,238,0.7)">
+    <a href="#" onclick="showSection('home')" class="hover:text-yellow-400 transition-colors">Home</a>
+    <a href="#" onclick="showSection('services')" class="hover:text-yellow-400 transition-colors">Services</a>
+    <a href="#" onclick="showSection('dashboard')" class="hover:text-yellow-400 transition-colors" id="nav-dashboard" style="display:none">My Account</a>
+    <a href="#" onclick="showSection('admin')" class="hover:text-yellow-400 transition-colors" id="nav-admin" style="display:none">Admin</a>
+  </div>
+  <div class="flex items-center gap-3" id="nav-auth">
+    <button class="btn-outline text-sm py-2 px-4" onclick="openAuth('login')">Sign In</button>
+    <button class="btn-gold text-sm py-2 px-4" onclick="openAuth('signup')">Get Started</button>
+  </div>
+  <div class="hidden items-center gap-3" id="nav-user">
+    <div class="text-sm" style="color:rgba(250,246,238,0.7)">Welcome, <span id="nav-username" style="color:var(--gold)">User</span></div>
+    <button class="btn-outline text-sm py-2 px-4" onclick="handleLogout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="ticker py-2 text-xs" style="background:rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.1);color:var(--gold)">
+  <span class="ticker-inner">✦ One Platform, 8 Powerful Services &nbsp;&nbsp;&nbsp; ✦ Choose 3+ Services & Unlock a 20% Discount &nbsp;&nbsp;&nbsp; ✦ Secure Payment Verification &nbsp;&nbsp;&nbsp; ✦ Business Solutions Delivered to Your Inbox, Phone or Chat &nbsp;&nbsp;&nbsp; ✦ Trusted by Thousands Across Nigeria &nbsp;&nbsp;&nbsp; ✦ Dutchkem Ventures ServiceMart — Your Business Solution &nbsp;&nbsp;&nbsp;</span>
+</div>
+
+<!-- HOME SECTION -->
+<section id="section-home">
+  <div class="hero-bg py-20 px-6 text-center relative">
+    <div style="max-width:700px;margin:0 auto">
+      <div class="badge-gold inline-flex items-center gap-2 mb-6">
+        <i class="fas fa-star text-xs"></i> Premium Business Services Platform
+      </div>
+      <h1 style="font-size:clamp(32px,5vw,58px);line-height:1.1;color:var(--cream);margin-bottom:16px">
+        One Platform.<br/><span style="color:var(--gold)">8 Services.</span><br/>Your Business Solution.
+      </h1>
+      <p style="font-size:17px;color:rgba(250,246,238,0.65);max-width:520px;margin:0 auto 32px;line-height:1.7">
+        From legal documents to financial projections — Dutchkem Ventures ServiceMart delivers authentic, professional outputs tailored specifically for your business.
+      </p>
+      <div class="flex justify-center gap-4 flex-wrap">
+        <button class="btn-gold text-base px-8 py-3" onclick="showSection('services')">
+          <i class="fas fa-rocket mr-2"></i>Explore Services
+        </button>
+        <button class="btn-outline text-base px-8 py-3" onclick="openAuth('signup')">
+          <i class="fas fa-user-plus mr-2"></i>Create Free Account
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16" style="max-width:700px;margin:56px auto 0">
+      <div class="text-center p-4" style="border-right:1px solid rgba(201,168,76,0.15)">
+        <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:700">8</div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:4px">Expert Services</div>
+      </div>
+      <div class="text-center p-4" style="border-right:1px solid rgba(201,168,76,0.15)">
+        <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:700">20%</div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:4px">Bundle Discount</div>
+      </div>
+      <div class="text-center p-4" style="border-right:1px solid rgba(201,168,76,0.15)">
+        <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:700">48h</div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:4px">Max Delivery</div>
+      </div>
+      <div class="text-center p-4">
+        <div style="font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:700">100%</div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:4px">Satisfaction</div>
+      </div>
+    </div>
+  </div>
+  <div class="px-6 py-16" style="max-width:900px;margin:0 auto">
+    <h2 class="text-center mb-12" style="font-size:32px;color:var(--gold)">How It Works</h2>
+    <div class="grid md:grid-cols-4 gap-8">
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(201,168,76,0.1);border:2px solid rgba(201,168,76,0.3)">
+          <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);font-weight:700">1</span>
+        </div>
+        <h3 style="font-size:16px;color:var(--cream);margin-bottom:6px">Pick Your Services</h3>
+        <p style="font-size:13px;color:rgba(250,246,238,0.5)">Choose from 8 expert services. Bundle 3+ for a 20% discount.</p>
+      </div>
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(201,168,76,0.1);border:2px solid rgba(201,168,76,0.3)">
+          <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);font-weight:700">2</span>
+        </div>
+        <h3 style="font-size:16px;color:var(--cream);margin-bottom:6px">Pay via OPay</h3>
+        <p style="font-size:13px;color:rgba(250,246,238,0.5)">Transfer to our OPay account and upload your proof of payment.</p>
+      </div>
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(201,168,76,0.1);border:2px solid rgba(201,168,76,0.3)">
+          <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);font-weight:700">3</span>
+        </div>
+        <h3 style="font-size:16px;color:var(--cream);margin-bottom:6px">Admin Verifies</h3>
+        <p style="font-size:13px;color:rgba(250,246,238,0.5)">Our team manually confirms your payment within a few hours.</p>
+      </div>
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(201,168,76,0.1);border:2px solid rgba(201,168,76,0.3)">
+          <span style="font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);font-weight:700">4</span>
+        </div>
+        <h3 style="font-size:16px;color:var(--cream);margin-bottom:6px">Get Your Output</h3>
+        <p style="font-size:13px;color:rgba(250,246,238,0.5)">Receive professional documents via chat, email, or phone.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES SECTION -->
+<section id="section-services" class="section-hidden px-6 py-12" style="max-width:1100px;margin:0 auto">
+  <div class="text-center mb-10">
+    <h2 style="font-size:36px;color:var(--gold);margin-bottom:8px">Our 8 Expert Services</h2>
+    <p style="color:rgba(250,246,238,0.6);font-size:15px">Select the services you need. Choose 3 or more and save 20% automatically.</p>
+  </div>
+  <div id="discount-banner" class="discount-banner mb-8 flex items-center justify-between" style="display:none">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-tags text-xl" style="color:var(--gold)"></i>
+      <div>
+        <div style="font-weight:600;color:var(--gold)">Bundle Discount Applied!</div>
+        <div style="font-size:13px;color:rgba(250,246,238,0.6)">You're saving 20% by choosing 3+ services</div>
+      </div>
+    </div>
+    <div style="font-family:'Playfair Display',serif;font-size:24px;color:var(--gold);font-weight:700">20% OFF</div>
+  </div>
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5" id="services-grid"></div>
+  <div id="cart-summary" class="mt-8 p-5 rounded-2xl" style="background:rgba(22,34,54,0.9);border:1px solid rgba(201,168,76,0.2);display:none">
+    <div class="flex items-center justify-between mb-4">
+      <h3 style="font-size:18px;color:var(--cream)"><i class="fas fa-shopping-cart mr-2" style="color:var(--gold)"></i>Your Selection</h3>
+      <button onclick="clearCart()" style="font-size:12px;color:rgba(250,246,238,0.4);background:none;border:none;cursor:pointer">Clear all</button>
+    </div>
+    <div id="cart-items"></div>
+    <div class="gold-line my-4"></div>
+    <div class="flex justify-between text-sm mb-1" style="color:rgba(250,246,238,0.6)">
+      <span>Subtotal</span><span id="cart-subtotal">₦0</span>
+    </div>
+    <div class="flex justify-between text-sm mb-3" id="discount-line" style="display:none;color:#5DCAA5">
+      <span>Bundle Discount (20%)</span><span id="cart-discount">-₦0</span>
+    </div>
+    <div class="flex justify-between font-semibold" style="font-size:18px;color:var(--gold)">
+      <span>Total</span><span id="cart-total">₦0</span>
+    </div>
+    <button class="btn-gold w-full mt-5 text-base py-3" onclick="proceedToPayment()">
+      <i class="fas fa-arrow-right mr-2"></i>Proceed to Payment
+    </button>
+  </div>
+</section>
+
+<!-- DASHBOARD SECTION -->
+<section id="section-dashboard" class="section-hidden px-6 py-12" style="max-width:900px;margin:0 auto">
+  <h2 style="font-size:32px;color:var(--gold);margin-bottom:4px">My Account</h2>
+  <p style="color:rgba(250,246,238,0.5);margin-bottom:24px;font-size:14px">Track your service requests and payment status</p>
+  <div class="flex gap-6 border-b mb-6" style="border-color:rgba(201,168,76,0.15)">
+    <button class="tab-btn active pb-3 text-sm font-medium" onclick="switchTab(this,'tab-orders')">My Orders</button>
+    <button class="tab-btn pb-3 text-sm font-medium" style="color:rgba(250,246,238,0.5)" onclick="switchTab(this,'tab-chat')">Chat with Agent</button>
+    <button class="tab-btn pb-3 text-sm font-medium" style="color:rgba(250,246,238,0.5)" onclick="switchTab(this,'tab-profile')">Profile</button>
+  </div>
+  <div id="tab-orders">
+    <div id="orders-list">
+      <div style="text-align:center;padding:48px;color:rgba(250,246,238,0.3)">
+        <i class="fas fa-inbox text-4xl mb-3"></i>
+        <p id="orders-empty">No orders yet. <a href="#" onclick="showSection('services')" style="color:var(--gold)">Browse services</a></p>
+        <div id="orders-loading" class="hidden"><span class="spinner"></span> Loading orders...</div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-chat" style="display:none">
+    <div class="chat-wrap">
+      <div id="chat-messages"></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <input class="form-input" id="chat-input" placeholder="Type your message..." onkeydown="if(event.key==='Enter')sendChat()" style="flex:1"/>
+        <button class="btn-gold py-2 px-4" onclick="sendChat()"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+  <div id="tab-profile" style="display:none">
+    <div class="service-card p-6 max-w-lg">
+      <h3 style="color:var(--gold);margin-bottom:16px">Profile Information</h3>
+      <div class="space-y-4">
+        <div>
+          <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Full Name</label>
+          <input class="form-input" id="profile-name" placeholder="Your full name"/>
+        </div>
+        <div>
+          <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Email Address</label>
+          <input class="form-input" id="profile-email" placeholder="your@email.com" readonly/>
+        </div>
+        <div>
+          <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Phone Number</label>
+          <input class="form-input" id="profile-phone" placeholder="+234 800 000 0000"/>
+        </div>
+        <button class="btn-gold py-2 px-6" onclick="saveProfile()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ADMIN SECTION -->
+<section id="section-admin" class="section-hidden px-6 py-12" style="max-width:1100px;margin:0 auto">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h2 style="font-size:32px;color:var(--gold)">Admin Dashboard</h2>
+      <p style="font-size:13px;color:rgba(250,246,238,0.4);margin-top:2px">Manage payment verifications and service requests</p>
+    </div>
+    <div class="badge-gold"><i class="fas fa-shield-alt mr-1"></i>Admin Access</div>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="service-card p-4 text-center">
+      <div style="font-size:28px;font-family:'Playfair Display',serif;color:var(--gold)" id="stat-pending">0</div>
+      <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:3px">Pending Review</div>
+    </div>
+    <div class="service-card p-4 text-center">
+      <div style="font-size:28px;font-family:'Playfair Display',serif;color:#5DCAA5" id="stat-verified">0</div>
+      <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:3px">Verified Today</div>
+    </div>
+    <div class="service-card p-4 text-center">
+      <div style="font-size:28px;font-family:'Playfair Display',serif;color:#F0997B" id="stat-rejected">0</div>
+      <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:3px">Rejected</div>
+    </div>
+    <div class="service-card p-4 text-center">
+      <div style="font-size:28px;font-family:'Playfair Display',serif;color:var(--gold)" id="stat-total">₦0</div>
+      <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-top:3px">Total Revenue</div>
+    </div>
+  </div>
+  <div class="service-card overflow-hidden">
+    <div class="p-4 flex justify-between items-center" style="border-bottom:1px solid rgba(201,168,76,0.15)">
+      <h3 style="color:var(--gold)">Payment Requests</h3>
+      <div class="flex gap-2">
+        <select class="form-input text-sm py-2" style="width:auto" onchange="filterAdmin(this.value)">
+          <option value="all">All Statuses</option>
+          <option value="proof_uploaded">Awaiting Verification</option>
+          <option value="verified">Verified</option>
+          <option value="rejected">Rejected</option>
+          <option value="pending">Pending Payment</option>
+        </select>
+        <button class="btn-gold py-2 px-4 text-sm" onclick="loadAdminOrders()"><i class="fas fa-sync mr-1"></i>Refresh</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="admin-table">
+        <thead>
+          <tr><th>Client</th><th>Services</th><th>Amount</th><th>Submitted</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="admin-table-body">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:rgba(250,246,238,0.3)"><span class="spinner"></span> Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="modal-auth">
+  <div class="modal-box p-8" style="max-width:420px">
+    <button onclick="closeModal('modal-auth')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(250,246,238,0.4);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+    <div class="text-center mb-6">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style="background:linear-gradient(135deg,var(--gold-dark),var(--gold))">
+        <i class="fas fa-gem" style="color:var(--navy)"></i>
+      </div>
+      <h2 id="auth-title" style="font-size:24px;color:var(--gold)">Welcome Back</h2>
+      <p id="auth-subtitle" style="font-size:13px;color:rgba(250,246,238,0.5);margin-top:4px">Sign in to your Dutchkem account</p>
+    </div>
+    <div id="auth-error" style="display:none;background:rgba(216,90,48,0.1);border:1px solid rgba(216,90,48,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#F0997B;margin-bottom:12px"></div>
+    <div class="space-y-4">
+      <div id="auth-name-field" style="display:none">
+        <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Full Name</label>
+        <input class="form-input" id="auth-name" placeholder="Your full name"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Email Address</label>
+        <input class="form-input" id="auth-email" type="email" placeholder="your@email.com"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Password</label>
+        <input class="form-input" id="auth-password" type="password" placeholder="••••••••"/>
+      </div>
+      <button class="btn-gold w-full py-3 text-base" id="auth-submit-btn" onclick="handleAuthSubmit()">
+        <span id="auth-btn-text">Sign In</span>
+        <span id="auth-btn-spinner" style="display:none"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></span>
+      </button>
+    </div>
+    <p class="text-center mt-4" style="font-size:13px;color:rgba(250,246,238,0.4)">
+      <span id="auth-switch-text">Don't have an account?</span>
+      <a href="#" onclick="toggleAuthMode()" style="color:var(--gold);margin-left:4px" id="auth-switch-link">Create one free</a>
+    </p>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal-box p-0" style="max-width:520px">
+    <div class="p-6 pb-0">
+      <button onclick="closeModal('modal-payment')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(250,246,238,0.4);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+      <div class="flex items-center gap-2 mb-6">
+        <div class="step-dot active" id="pstep-1">1</div>
+        <div style="flex:1;height:2px;background:rgba(201,168,76,0.1)" id="pstep-line-1"></div>
+        <div class="step-dot" id="pstep-2">2</div>
+        <div style="flex:1;height:2px;background:rgba(201,168,76,0.1)" id="pstep-line-2"></div>
+        <div class="step-dot" id="pstep-3">3</div>
+        <div style="flex:1;height:2px;background:rgba(201,168,76,0.1)" id="pstep-line-3"></div>
+        <div class="step-dot" id="pstep-4">4</div>
+      </div>
+    </div>
+    <div id="payment-step-1" class="p-6 pt-0">
+      <h3 style="font-size:20px;color:var(--gold);margin-bottom:4px">Order Summary</h3>
+      <p style="font-size:13px;color:rgba(250,246,238,0.5);margin-bottom:16px">Please review your selection before proceeding</p>
+      <div id="payment-order-summary"></div>
+      <div class="gold-line my-4"></div>
+      <div id="payment-totals"></div>
+      <div class="mt-4">
+        <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Business / Project Name</label>
+        <input class="form-input" id="payment-business-name" placeholder="e.g., Sunrise Foods Ltd"/>
+      </div>
+      <button class="btn-gold w-full mt-5 py-3" onclick="goPayStep(2)">Continue to Payment <i class="fas fa-arrow-right ml-2"></i></button>
+    </div>
+    <div id="payment-step-2" class="p-6 pt-0" style="display:none">
+      <h3 style="font-size:20px;color:var(--gold);margin-bottom:4px">Make Your Transfer</h3>
+      <p style="font-size:13px;color:rgba(250,246,238,0.5);margin-bottom:16px">Transfer the exact amount to the account below</p>
+      <div style="background:rgba(13,27,42,0.7);border:1px solid rgba(201,168,76,0.3);border-radius:14px;padding:20px">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#003300,#006600);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:22px">💚</div>
+          <div style="font-size:13px;color:rgba(250,246,238,0.4)">OPay — Mobile Banking</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1)">
+          <span style="font-size:13px;color:rgba(250,246,238,0.5)">Account Number</span>
+          <span style="font-weight:600;color:var(--gold);letter-spacing:1px">812116102</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1)">
+          <span style="font-size:13px;color:rgba(250,246,238,0.5)">Account Name</span>
+          <span style="font-weight:500;color:var(--cream)">Oladotun Alabi</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(201,168,76,0.1)">
+          <span style="font-size:13px;color:rgba(250,246,238,0.5)">Bank</span>
+          <span style="font-weight:500;color:var(--cream)">OPay</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0">
+          <span style="font-size:13px;color:rgba(250,246,238,0.5)">Amount to Send</span>
+          <span style="font-weight:700;font-size:18px;color:var(--gold)" id="pay-amount-display">₦0</span>
+        </div>
+      </div>
+      <div style="background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.15);border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:rgba(250,246,238,0.5)">
+        <i class="fas fa-info-circle mr-1" style="color:var(--gold)"></i>
+        Please transfer the <strong style="color:var(--cream)">exact amount</strong>. Include your <strong style="color:var(--cream)">registered email</strong> as transfer narration if possible.
+      </div>
+      <button class="btn-gold w-full mt-5 py-3" onclick="goPayStep(3)">I've Sent the Money <i class="fas fa-check ml-2"></i></button>
+    </div>
+    <div id="payment-step-3" class="p-6 pt-0" style="display:none">
+      <h3 style="font-size:20px;color:var(--gold);margin-bottom:4px">Upload Proof of Payment</h3>
+      <p style="font-size:13px;color:rgba(250,246,238,0.5);margin-bottom:16px">Attach your bank receipt or screenshot</p>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('proof-file-input').click()">
+        <i class="fas fa-cloud-upload-alt text-3xl mb-3" style="color:var(--gold);opacity:0.6"></i>
+        <p style="font-size:14px;color:rgba(250,246,238,0.6)">Click to upload your payment proof</p>
+        <p style="font-size:12px;color:rgba(250,246,238,0.3);margin-top:4px">PNG, JPG, PDF up to 5MB</p>
+        <div id="upload-preview" style="margin-top:12px;display:none">
+          <span class="badge-green"><i class="fas fa-check mr-1"></i><span id="upload-filename">file.png</span></span>
+        </div>
+      </div>
+      <input type="file" id="proof-file-input" accept="image/*,.pdf" style="display:none" onchange="handleFileUpload(this)"/>
+      <div class="mt-4">
+        <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Transaction Reference (optional)</label>
+        <input class="form-input" id="txn-ref" placeholder="e.g., TXN123456789"/>
+      </div>
+      <button class="btn-gold w-full mt-5 py-3" onclick="submitPayment()">
+        <span id="submit-btn-text">Submit for Verification</span>
+        <span id="submit-btn-spinner" style="display:none"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></span>
+      </button>
+    </div>
+    <div id="payment-step-4" class="p-6 pt-0 text-center" style="display:none">
+      <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background:rgba(29,158,117,0.15);border:2px solid #1D9E75">
+        <i class="fas fa-check text-2xl" style="color:#5DCAA5"></i>
+      </div>
+      <h3 style="font-size:22px;color:var(--cream);margin-bottom:8px">Submitted Successfully!</h3>
+      <p style="font-size:14px;color:rgba(250,246,238,0.6);line-height:1.7;margin-bottom:20px">
+        Thank you so much! 🎉 We've received your payment proof and our team will verify it within <strong style="color:var(--gold)">2–6 hours</strong>. You'll be notified as soon as it's confirmed.
+      </p>
+      <div style="background:rgba(13,27,42,0.6);border:1px solid rgba(201,168,76,0.15);border-radius:10px;padding:14px;font-size:13px;color:rgba(250,246,238,0.5);margin-bottom:20px">
+        <i class="fas fa-envelope mr-1" style="color:var(--gold)"></i> Check your email for order confirmation. Reference: <strong style="color:var(--gold)" id="order-ref"></strong>
+      </div>
+      <button class="btn-gold w-full py-3" onclick="closeModal('modal-payment');showSection('dashboard')">
+        Go to My Dashboard <i class="fas fa-arrow-right ml-2"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DELIVERY MODAL -->
+<div class="modal-overlay" id="modal-delivery">
+  <div class="modal-box p-6" style="max-width:540px">
+    <button onclick="closeModal('modal-delivery')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(250,246,238,0.4);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+    <h3 style="font-size:22px;color:var(--gold);margin-bottom:4px">Deliver Your Output</h3>
+    <p style="font-size:13px;color:rgba(250,246,238,0.5);margin-bottom:20px">How would you like to receive your completed service documents?</p>
+    <div class="mb-4">
+      <label style="font-size:13px;color:rgba(250,246,238,0.6);display:block;margin-bottom:8px;font-weight:500">Output Format</label>
+      <div class="grid grid-cols-3 gap-3" id="format-options">
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectFormat(this,'PDF')" data-fmt="PDF">
+          <i class="fas fa-file-pdf text-2xl mb-2" style="color:#F0997B"></i>
+          <div style="font-size:13px;color:var(--cream)">PDF</div>
+        </div>
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectFormat(this,'DOCX')" data-fmt="DOCX">
+          <i class="fas fa-file-word text-2xl mb-2" style="color:#85B7EB"></i>
+          <div style="font-size:13px;color:var(--cream)">Word (DOCX)</div>
+        </div>
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectFormat(this,'JPEG')" data-fmt="JPEG">
+          <i class="fas fa-file-image text-2xl mb-2" style="color:#5DCAA5"></i>
+          <div style="font-size:13px;color:var(--cream)">Image (JPEG)</div>
+        </div>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label style="font-size:13px;color:rgba(250,246,238,0.6);display:block;margin-bottom:8px;font-weight:500">Delivery Channel</label>
+      <div class="grid grid-cols-3 gap-3" id="channel-options">
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectChannel(this,'email')" data-ch="email">
+          <i class="fas fa-envelope text-2xl mb-2" style="color:var(--gold)"></i>
+          <div style="font-size:13px;color:var(--cream)">Email</div>
+        </div>
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectChannel(this,'phone')" data-ch="phone">
+          <i class="fas fa-phone text-2xl mb-2" style="color:var(--gold)"></i>
+          <div style="font-size:13px;color:var(--cream)">Phone / SMS</div>
+        </div>
+        <div class="service-card p-3 text-center cursor-pointer" onclick="selectChannel(this,'chat')" data-ch="chat">
+          <i class="fas fa-comments text-2xl mb-2" style="color:var(--gold)"></i>
+          <div style="font-size:13px;color:var(--cream)">Chat (Here)</div>
+        </div>
+      </div>
+    </div>
+    <div id="delivery-email-field" style="display:none;margin-bottom:12px">
+      <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Email Address</label>
+      <input class="form-input" id="delivery-email" type="email" placeholder="your@email.com"/>
+    </div>
+    <div id="delivery-phone-field" style="display:none;margin-bottom:12px">
+      <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Phone Number</label>
+      <input class="form-input" id="delivery-phone" placeholder="+234 800 000 0000"/>
+    </div>
+    <button class="btn-gold w-full py-3 mt-2" onclick="confirmDelivery()">
+      <i class="fas fa-paper-plane mr-2"></i>Send My Documents
+    </button>
+  </div>
+</div>
+
+<!-- RECEIPT MODAL -->
+<div class="modal-overlay" id="modal-receipt">
+  <div class="modal-box p-6" style="max-width:500px">
+    <button onclick="closeModal('modal-receipt')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(250,246,238,0.4);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+    <h3 style="font-size:20px;color:var(--gold);margin-bottom:16px"><i class="fas fa-receipt mr-2"></i>Official Receipt</h3>
+    <div class="receipt-box" id="receipt-content"></div>
+    <div class="flex gap-3 mt-4">
+      <button class="btn-outline flex-1 py-2 text-sm" onclick="printReceipt()"><i class="fas fa-print mr-1"></i>Print</button>
+      <button class="btn-gold flex-1 py-2 text-sm" onclick="closeModal('modal-receipt');openDeliveryModal()"><i class="fas fa-paper-plane mr-1"></i>Deliver Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN VIEW MODAL -->
+<div class="modal-overlay" id="modal-admin-view">
+  <div class="modal-box p-6" style="max-width:520px">
+    <button onclick="closeModal('modal-admin-view')" style="position:absolute;top:16px;right:16px;background:none;border:none;color:rgba(250,246,238,0.4);font-size:18px;cursor:pointer"><i class="fas fa-times"></i></button>
+    <h3 style="font-size:20px;color:var(--gold);margin-bottom:4px">Order Details</h3>
+    <p style="font-size:12px;color:rgba(250,246,238,0.4);margin-bottom:20px" id="admin-order-id"></p>
+    <div id="admin-order-detail"></div>
+    <div class="mt-4">
+      <label style="font-size:12px;color:rgba(250,246,238,0.5);display:block;margin-bottom:5px">Admin Notes</label>
+      <textarea class="form-input" id="admin-notes" rows="3" placeholder="Any notes about this verification..."></textarea>
+    </div>
+    <div class="flex gap-3 mt-4">
+      <button class="btn-gold flex-1 py-2 text-sm" onclick="verifyOrder()"><i class="fas fa-check mr-1"></i>Verify & Approve</button>
+      <button class="btn-outline flex-1 py-2 text-sm" style="color:#F0997B;border-color:rgba(216,90,48,0.4)" onclick="rejectOrder()"><i class="fas fa-times mr-1"></i>Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- FOOTER -->
+<footer style="background:rgba(9,18,28,0.9);border-top:1px solid rgba(201,168,76,0.1);padding:32px 24px;text-align:center;margin-top:60px">
+  <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--gold);margin-bottom:4px">Dutchkem Ventures ServiceMart</div>
+  <div style="font-size:12px;color:rgba(250,246,238,0.3)">One Platform. 8 Services. Your Business Solution.</div>
+  <div class="gold-line" style="width:100px;margin:16px auto"></div>
+  <div style="font-size:11px;color:rgba(250,246,238,0.2)">© 2025 Dutchkem Ventures. All rights reserved.</div>
+</footer>
+
+<!-- MAIN JAVASCRIPT -->
+<script>
+// =================== DATA ===================
+const SERVICES = [
+  { id:'biz-reg', icon:'fa-building', name:'Business Registration', desc:'CAC-style business name / incorporation documents, certificate of registration, and startup filings.', price_ngn:15000, category:'Legal' },
+  { id:'legal-doc', icon:'fa-scale-balanced', name:'Legal Document Drafting', desc:'Contracts, MOUs, NDAs, partnership agreements and other professionally drafted legal documents.', price_ngn:20000, category:'Legal' },
+  { id:'biz-plan', icon:'fa-chart-line', name:'Business Plan Writing', desc:'Comprehensive investor-ready business plans with market analysis, financial projections, and executive summary.', price_ngn:25000, category:'Strategy' },
+  { id:'financial', icon:'fa-calculator', name:'Financial Projections', desc:'5-year income statements, cash flow forecasts, balance sheets, and break-even analysis for your business.', price_ngn:18000, category:'Finance' },
+  { id:'branding', icon:'fa-palette', name:'Brand Strategy & Naming', desc:'Company naming, tagline creation, brand voice guidelines, and positioning strategy document.', price_ngn:12000, category:'Marketing' },
+  { id:'proposal', icon:'fa-file-alt', name:'Business Proposal Writing', desc:'Winning tender proposals, grant applications, project bids, and partnership pitch documents.', price_ngn:16000, category:'Strategy' },
+  { id:'market', icon:'fa-bullseye', name:'Market Research Report', desc:'Detailed industry analysis, competitor research, target market study, and growth opportunity mapping.', price_ngn:22000, category:'Research' },
+  { id:'hr-docs', icon:'fa-users', name:'HR Documents & Policies', desc:'Employee handbook, job descriptions, offer letters, HR policy manual, and KPI frameworks.', price_ngn:14000, category:'HR' }
+];
+const BUNDLE_DISCOUNT = 0.20, BUNDLE_THRESHOLD = 3;
+
+// =================== STATE ===================
+let state = { user:null, cart:[], orders:[], currentOrderId:null, deliveryFormat:null, deliveryChannel:null, adminOrders:[], currentAdminOrder:null, proofFile:null, authMode:'login' };
+
+// =================== INIT ===================
+document.addEventListener('DOMContentLoaded', async () => {
+  renderServices();
+  initChat();
+  // Check for existing session
+  const { data: { session } } = await _supabase.auth.getSession();
+  if (session) {
+    const { data: profile } = await _supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    state.user = {
+      id: session.user.id, email: session.user.email,
+      name: profile?.full_name || session.user.email.split('@')[0],
+      phone: profile?.phone || '', role: profile?.role || 'user'
+    };
+    onLogin();
+  }
+});
+
+// =================== SECTIONS ===================
+function showSection(name) {
+  ['home','services','dashboard','admin'].forEach(s => document.getElementById('section-'+s).classList.add('section-hidden'));
+  document.getElementById('section-'+name).classList.remove('section-hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if (name === 'dashboard' && state.user) loadUserOrders();
+  if (name === 'admin' && state.user?.role === 'admin') loadAdminOrders();
+}
+
+// =================== AUTH ===================
+function openAuth(mode) {
+  state.authMode = mode;
+  document.getElementById('auth-error').style.display='none';
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-password').value='';
+  document.getElementById('auth-name').value='';
+  if (mode === 'signup') {
+    document.getElementById('auth-title').textContent='Create Your Account';
+    document.getElementById('auth-subtitle').textContent='Join thousands of businesses on Dutchkem ServiceMart';
+    document.getElementById('auth-btn-text').textContent='Create Account';
+    document.getElementById('auth-switch-text').textContent='Already have an account?';
+    document.getElementById('auth-switch-link').textContent='Sign in here';
+    document.getElementById('auth-name-field').style.display='block';
+  } else {
+    document.getElementById('auth-title').textContent='Welcome Back';
+    document.getElementById('auth-subtitle').textContent='Sign in to your Dutchkem account';
+    document.getElementById('auth-btn-text').textContent='Sign In';
+    document.getElementById('auth-switch-text').textContent="Don't have an account?";
+    document.getElementById('auth-switch-link').textContent='Create one free';
+    document.getElementById('auth-name-field').style.display='none';
+  }
+  openModal('modal-auth');
+}
+function toggleAuthMode() { openAuth(state.authMode === 'login' ? 'signup' : 'login'); }
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-password').value;
+  const name = document.getElementById('auth-name').value.trim();
+  if (!email || !pass) { showAuthError('Please fill in all fields.'); return; }
+  if (pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  
+  document.getElementById('auth-btn-text').style.display='none';
+  document.getElementById('auth-btn-spinner').style.display='inline';
+  
+  try {
+    if (state.authMode === 'signup') {
+      const { data, error } = await _supabase.auth.signUp({
+        email, password,
+        options: { data: { full_name: name } }
+      });
+      if (error) throw error;
+      // Create profile
+      if (data.user) {
+        await _supabase.from('profiles').insert({
+          id: data.user.id, email, full_name: name, role: email === 'admin@dutchkem.com' ? 'admin' : 'user'
+        });
+      }
+      toast('Account created! Please check your email to verify.', 'success');
+    } else {
+      const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast(`Welcome back, ${name || email.split('@')[0]}! 👋`, 'success');
+    }
+    closeModal('modal-auth');
+  } catch (err) {
+    showAuthError(err.message || 'Authentication failed. Please try again.');
+  } finally {
+    document.getElementById('auth-btn-text').style.display='inline';
+    document.getElementById('auth-btn-spinner').style.display='none';
+  }
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function onLogin() {
+  document.getElementById('nav-auth').style.display='none';
+  document.getElementById('nav-user').style.display='flex';
+  document.getElementById('nav-username').textContent = state.user.name;
+  document.getElementById('nav-dashboard').style.display='block';
+  document.getElementById('profile-email').value = state.user.email;
+  document.getElementById('profile-name').value = state.user.name;
+  document.getElementById('profile-phone').value = state.user.phone || '';
+  if (state.user.role === 'admin') document.getElementById('nav-admin').style.display='block';
+}
+
+async function handleLogout() {
+  await _supabase.auth.signOut();
+  state.user = null; state.cart = [];
+  document.getElementById('nav-auth').style.display='flex';
+  document.getElementById('nav-user').style.display='none';
+  document.getElementById('nav-dashboard').style.display='none';
+  document.getElementById('nav-admin').style.display='none';
+  showSection('home');
+  toast('You\'ve been signed out. See you soon! 👋');
+}
+
+// =================== SERVICES ===================
+function renderServices() {
+  const grid = document.getElementById('services-grid');
+  grid.innerHTML = SERVICES.map(s => `
+    <div class="service-card p-5" onclick="toggleService('${s.id}')" id="scard-${s.id}">
+      <div class="check-badge"><i class="fas fa-check" style="font-size:11px"></i></div>
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style="background:rgba(201,168,76,0.1)">
+        <i class="fas ${s.icon}" style="color:var(--gold)"></i>
+      </div>
+      <div class="badge-gold text-xs mb-2">${s.category}</div>
+      <h3 style="font-size:15px;color:var(--cream);margin-bottom:6px;font-family:'Playfair Display',serif">${s.name}</h3>
+      <p style="font-size:12px;color:rgba(250,246,238,0.5);line-height:1.5;margin-bottom:12px">${s.desc}</p>
+      <div style="font-size:17px;font-weight:600;color:var(--gold)">₦${s.price_ngn.toLocaleString()}</div>
+    </div>
+  `).join('');
+}
+
+function toggleService(id) {
+  const idx = state.cart.indexOf(id);
+  if (idx > -1) { state.cart.splice(idx,1); document.getElementById('scard-'+id).classList.remove('selected'); }
+  else { state.cart.push(id); document.getElementById('scard-'+id).classList.add('selected'); }
+  updateCartUI();
+}
+
+function updateCartUI() {
+  const cartEl = document.getElementById('cart-summary');
+  const discEl = document.getElementById('discount-banner');
+  const discLine = document.getElementById('discount-line');
+  const count = state.cart.length;
+  const hasDiscount = count >= BUNDLE_THRESHOLD;
+  
+  if (count === 0) { cartEl.style.display='none'; discEl.style.display='none'; return; }
+  cartEl.style.display='block';
+  discEl.style.display = hasDiscount ? 'flex' : 'none';
+  discLine.style.display = hasDiscount ? 'flex' : 'none';
+  
+  const services = state.cart.map(id => SERVICES.find(s=>s.id===id));
+  const subtotal = services.reduce((a,s)=>a+s.price_ngn,0);
+  const discount = hasDiscount ? subtotal * BUNDLE_DISCOUNT : 0;
+  const total = subtotal - discount;
+  
+  document.getElementById('cart-items').innerHTML = services.map(s=>
+    `<div class="flex justify-between items-center py-2" style="border-bottom:1px solid rgba(201,168,76,0.08);font-size:14px">
+      <span style="color:var(--cream)">${s.name}</span>
+      <div class="flex items-center gap-3">
+        <span style="color:var(--gold)">₦${s.price_ngn.toLocaleString()}</span>
+        <button onclick="event.stopPropagation();toggleService('${s.id}')" style="background:none;border:none;color:rgba(250,246,238,0.3);cursor:pointer;font-size:12px"><i class="fas fa-times"></i></button>
+      </div>
+    </div>`
+  ).join('');
+  
+  document.getElementById('cart-subtotal').textContent = '₦'+subtotal.toLocaleString();
+  document.getElementById('cart-discount').textContent = '-₦'+discount.toLocaleString();
+  document.getElementById('cart-total').textContent = '₦'+total.toLocaleString();
+}
+
+function clearCart() {
+  state.cart.forEach(id => document.getElementById('scard-'+id)?.classList.remove('selected'));
+  state.cart = [];
+  updateCartUI();
+}
+
+function getCartTotals() {
+  const services = state.cart.map(id => SERVICES.find(s=>s.id===id));
+  const subtotal = services.reduce((a,s)=>a+s.price_ngn,0);
+  const hasDiscount = state.cart.length >= BUNDLE_THRESHOLD;
+  const discount = hasDiscount ? subtotal * BUNDLE_DISCOUNT : 0;
+  return { services, subtotal, discount, total: subtotal - discount, hasDiscount };
+}
+
+// =================== PAYMENT FLOW ===================
+function proceedToPayment() {
+  if (!state.user) { openAuth('login'); toast('Please sign in first to continue.','warning'); return; }
+  if (state.cart.length === 0) return;
+  
+  const { services, subtotal, discount, total, hasDiscount } = getCartTotals();
+  document.getElementById('payment-order-summary').innerHTML = services.map(s=>
+    `<div class="flex justify-between text-sm py-2" style="border-bottom:1px solid rgba(201,168,76,0.07)">
+      <span style="color:rgba(250,246,238,0.7)">${s.name}</span>
+      <span style="color:var(--gold)">₦${s.price_ngn.toLocaleString()}</span>
+    </div>`
+  ).join('');
+  
+  document.getElementById('payment-totals').innerHTML = `
+    <div class="flex justify-between text-sm mb-1" style="color:rgba(250,246,238,0.5)"><span>Subtotal</span><span>₦${subtotal.toLocaleString()}</span></div>
+    ${hasDiscount ? `<div class="flex justify-between text-sm mb-2" style="color:#5DCAA5"><span>Bundle Discount (20%)</span><span>-₦${discount.toLocaleString()}</span></div>` : ''}
+    <div class="flex justify-between font-semibold" style="font-size:18px;color:var(--gold)"><span>Total</span><span>₦${total.toLocaleString()}</span></div>
+  `;
+  
+  document.getElementById('pay-amount-display').textContent = '₦' + total.toLocaleString();
+  goPayStep(1);
+  openModal('modal-payment');
+}
+
+function goPayStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('payment-step-'+i).style.display = i===n ? 'block' : 'none';
+    const dot = document.getElementById('pstep-'+i);
+    dot.classList.remove('active','done');
+    if (i < n) dot.classList.add('done');
+    else if (i === n) dot.classList.add('active');
+    if (i < n && i < 4) document.getElementById('pstep-line-'+i).style.background='rgba(29,158,117,0.4)';
+  });
+}
+
+function handleFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.proofFile = file;
+  document.getElementById('upload-filename').textContent = file.name;
+  document.getElementById('upload-preview').style.display='block';
+  toast('File attached: ' + file.name, 'success');
+}
+
+async function submitPayment() {
+  const bname = document.getElementById('payment-business-name').value.trim();
+  document.getElementById('submit-btn-text').style.display='none';
+  document.getElementById('submit-btn-spinner').style.display='inline';
+  
+  try {
+    const { services, total, hasDiscount, discount } = getCartTotals();
+    const ref = 'DV-' + Date.now().toString(36).toUpperCase();
+    
+    // Upload proof file to Supabase Storage if provided
+    let proofUrl = null;
+    if (state.proofFile) {
+      const fileExt = state.proofFile.name.split('.').pop();
+      const fileName = `${ref}/proof.${fileExt}`;
+      const { error: uploadError } = await _supabase.storage
+        .from('payment-proofs')
+        .upload(fileName, state.proofFile, { upsert: true });
+      if (!uploadError) {
+        const { data } = _supabase.storage.from('payment-proofs').getPublicUrl(fileName);
+        proofUrl = data.publicUrl;
+      }
+    }
+    
+    // Insert order into Supabase
+    const { error } = await _supabase.from('orders').insert({
+      id: ref, user_id: state.user.id, services: state.cart,
+      total, discount, has_discount: hasDiscount, business_name: bname,
+      status: 'proof_uploaded', txn_ref: document.getElementById('txn-ref').value,
+      proof_url: proofUrl, created_at: new Date().toISOString()
+    });
+    
+    if (error) throw error;
+    
+    document.getElementById('order-ref').textContent = ref;
+    goPayStep(4);
+    clearCart();
+    toast('Order submitted successfully! 🎉', 'success');
+  } catch (err) {
+    toast('Error submitting order: ' + err.message, 'warning');
+  } finally {
+    document.getElementById('submit-btn-text').style.display='inline';
+    document.getElementById('submit-btn-spinner').style.display='none';
+  }
+}
+
+// =================== ORDERS ===================
+async function loadUserOrders() {
+  if (!state.user) return;
+  document.getElementById('orders-loading').classList.remove('hidden');
+  document.getElementById('orders-empty').classList.add('hidden');
+  
+  try {
+    const { data, error } = await _supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', state.user.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    const container = document.getElementById('orders-list');
+    if (!data || data.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:48px;color:rgba(250,246,238,0.3)"><i class="fas fa-inbox text-4xl mb-3"></i><p>No orders yet. <a href="#" onclick="showSection('services')" style="color:var(--gold)">Browse services</a></p></div>`;
+      return;
+    }
+    
+    container.innerHTML = data.map(o => `
+      <div class="service-card p-4 mb-3">
+        <div class="flex justify-between items-start mb-3">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--cream)">${o.business_name || 'My Order'}</div>
+            <div style="font-size:11px;color:rgba(250,246,238,0.4);margin-top:2px">${o.id} · ${new Date(o.created_at).toLocaleDateString()}</div>
+          </div>
+          ${statusBadge(o.status)}
+        </div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.5);margin-bottom:8px">${o.services.map(sid => SERVICES.find(s=>s.id===sid)?.name).filter(Boolean).join(' · ')}</div>
+        <div class="flex items-center justify-between">
+          <div style="font-size:16px;font-weight:600;color:var(--gold)">₦${o.total?.toLocaleString()}</div>
+          ${o.status === 'verified' ? `<button class="btn-gold py-1 px-4 text-sm" onclick='receiveService(${JSON.stringify(o).replace(/'/g,"\\'")})'>Get Output <i class="fas fa-download ml-1"></i></button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Error loading orders:', err);
+    toast('Failed to load orders', 'warning');
+  } finally {
+    document.getElementById('orders-loading').classList.add('hidden');
+  }
+}
+
+function statusBadge(s) {
+  const map = {
+    pending: ['badge-gold','Pending Payment'],
+    proof_uploaded: ['badge-blue','Under Review'],
+    verified: ['badge-green','Verified ✓'],
+    rejected: ['badge-red','Rejected'],
+    expired: ['badge-red','Expired']
+  };
+  const [cls, label] = map[s] || ['badge-gold', s];
+  return `<span class="${cls}">${label}</span>`;
+}
+
+// =================== ADMIN ===================
+async function loadAdminOrders() {
+  if (state.user?.role !== 'admin') return;
+  
+  try {
+    const { data, error } = await _supabase
+      .from('orders')
+      .select('*, profiles(full_name, email)')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    state.adminOrders = data || [];
+    updateAdminStats(state.adminOrders);
+    renderAdminTable(state.adminOrders);
+  } catch (err) {
+    console.error('Error loading admin orders:', err);
+    toast('Failed to load orders', 'warning');
+  }
+}
+
+function updateAdminStats(orders) {
+  const pending = orders.filter(o=>o.status==='proof_uploaded').length;
+  const verified = orders.filter(o=>o.status==='verified').length;
+  const rejected = orders.filter(o=>o.status==='rejected').length;
+  const rev = orders.filter(o=>o.status==='verified').reduce((a,o)=>a+(o.total||0),0);
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-verified').textContent = verified;
+  document.getElementById('stat-rejected').textContent = rejected;
+  document.getElementById('stat-total').textContent = '₦'+rev.toLocaleString();
+}
+
+function filterAdmin(status) {
+  const orders = status==='all' ? state.adminOrders : state.adminOrders.filter(o=>o.status===status);
+  renderAdminTable(orders);
+}
+
+function renderAdminTable(orders) {
+  const tbody = document.getElementById('admin-table-body');
+  if (!orders || orders.length === 0) { 
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:32px;color:rgba(250,246,238,0.3)">No orders found</td></tr>'; 
+    return; 
+  }
+  tbody.innerHTML = orders.map((o,i) => `
+    <tr>
+      <td>
+        <div style="font-weight:500;font-size:13px;color:var(--cream)">${o.profiles?.full_name || 'Unknown'}</div>
+        <div style="font-size:11px;color:rgba(250,246,238,0.4)">${o.profiles?.email || ''}</div>
+      </td>
+      <td style="font-size:12px;color:rgba(250,246,238,0.6);max-width:200px">${o.services?.map(sid => SERVICES.find(s=>s.id===sid)?.name).filter(Boolean).join(', ')}</td>
+      <td style="color:var(--gold);font-weight:500">₦${o.total?.toLocaleString()}</td>
+      <td style="font-size:12px;color:rgba(250,246,238,0.5)">${new Date(o.created_at).toLocaleDateString()}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td>
+        <button class="btn-outline py-1 px-3 text-xs" onclick="openAdminView(${i})" style="white-space:nowrap">
+          <i class="fas fa-eye mr-1"></i>Review
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAdminView(idx) {
+  state.currentAdminOrder = state.adminOrders[idx];
+  const o = state.currentAdminOrder;
+  document.getElementById('admin-order-id').textContent = 'Order: ' + o.id;
+  document.getElementById('admin-notes').value = o.admin_notes || '';
+  document.getElementById('admin-order-detail').innerHTML = `
+    <div class="service-card p-4 mb-3">
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Client</div><div style="color:var(--cream)">${o.profiles?.full_name}</div></div>
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Email</div><div style="color:var(--cream)">${o.profiles?.email}</div></div>
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Business</div><div style="color:var(--cream)">${o.business_name||'N/A'}</div></div>
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Total</div><div style="color:var(--gold);font-weight:600">₦${o.total?.toLocaleString()}</div></div>
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Transaction Ref</div><div style="color:var(--cream)">${o.txn_ref||'Not provided'}</div></div>
+        <div><div style="color:rgba(250,246,238,0.4);font-size:11px">Status</div>${statusBadge(o.status)}</div>
+      </div>
+      ${o.proof_url ? `<div style="margin-top:12px"><a href="${o.proof_url}" target="_blank" style="color:var(--gold);font-size:12px"><i class="fas fa-image mr-1"></i>View Payment Proof</a></div>` : ''}
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(201,168,76,0.1)">
+        <div style="color:rgba(250,246,238,0.4);font-size:11px;margin-bottom:6px">Services Requested</div>
+        <div style="font-size:12px;color:rgba(250,246,238,0.7)">${o.services?.map(sid => SERVICES.find(s=>s.id===sid)?.name).filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>
+  `;
+  openModal('modal-admin-view');
+}
+
+async function verifyOrder() {
+  if (!state.currentAdminOrder) return;
+  try {
+    const { error } = await _supabase
+      .from('orders')
+      .update({ status: 'verified', admin_notes: document.getElementById('admin-notes').value })
+      .eq('id', state.currentAdminOrder.id);
+    if (error) throw error;
+    toast('✅ Payment verified! Client notified.', 'success');
+    closeModal('modal-admin-view');
+    loadAdminOrders();
+  } catch (err) {
+    toast('Error verifying order: ' + err.message, 'warning');
+  }
+}
+
+async function rejectOrder() {
+  if (!state.currentAdminOrder) return;
+  try {
+    const { error } = await _supabase
+      .from('orders')
+      .update({ status: 'rejected', admin_notes: document.getElementById('admin-notes').value })
+      .eq('id', state.currentAdminOrder.id);
+    if (error) throw error;
+    toast('Order rejected.', 'warning');
+    closeModal('modal-admin-view');
+    loadAdminOrders();
+  } catch (err) {
+    toast('Error rejecting order: ' + err.message, 'warning');
+  }
+}
+
+// =================== DELIVERY ===================
+function receiveService(order) {
+  state.currentAdminOrder = order;
+  generateReceipt(order);
+  openModal('modal-receipt');
+}
+
+function generateReceipt(order) {
+  const now = new Date();
+  document.getElementById('receipt-content').innerHTML = `
+    <div style="text-align:center;border-bottom:2px solid #0D1B2A;padding-bottom:16px;margin-bottom:16px">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:4px">Official Receipt</div>
+      <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#0D1B2A">Dutchkem Ventures</div>
+      <div style="font-size:11px;color:#888">ServiceMart — Your Business Solution</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:12px">
+      <div><span style="color:#888">Receipt No:</span><br/><strong>${order.id}</strong></div>
+      <div><span style="color:#888">Date:</span><br/><strong>${now.toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'})}</strong></div>
+      <div><span style="color:#888">Client:</span><br/><strong>${order.profiles?.full_name || state.user?.name}</strong></div>
+      <div><span style="color:#888">Business:</span><br/><strong>${order.business_name||'N/A'}</strong></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px">
+      <tr style="background:#f5f0e8"><th style="padding:6px 8px;text-align:left">Service</th><th style="padding:6px 8px;text-align:right">Amount (₦)</th></tr>
+      ${order.services.map(sid => {
+        const s = SERVICES.find(sv => sv.id === sid);
+        return s ? `<tr style="border-bottom:1px solid #eee"><td style="padding:6px 8px">${s.name}</td><td style="padding:6px 8px;text-align:right">${s.price_ngn.toLocaleString()}</td></tr>` : '';
+      }).join('')}
+    </table>
+    ${order.has_discount ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:green;padding:4px 0"><span>Bundle Discount (20%)</span><span>-₦${order.discount?.toLocaleString()}</span></div>` : ''}
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:2px solid #0D1B2A;padding-top:8px;margin-top:4px"><span>TOTAL PAID</span><span>₦${order.total?.toLocaleString()}</span></div>
+    <div style="margin-top:14px;padding:10px;background:#f9f5ee;border-radius:6px;font-size:11px;color:#888;text-align:center">
+      Payment verified via OPay · Dutchkem Ventures · RC: DV/2025/001<br/>
+      Thank you for choosing us. We truly appreciate your business! 🙏
+    </div>
+  `;
+}
+
+function openDeliveryModal() {
+  document.getElementById('delivery-email').value = state.user?.email||'';
+  document.getElementById('delivery-phone').value = state.user?.phone||'';
+  openModal('modal-delivery');
+}
+
+function selectFormat(el, fmt) {
+  document.querySelectorAll('#format-options .service-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.deliveryFormat = fmt;
+}
+function selectChannel(el, ch) {
+  document.querySelectorAll('#channel-options .service-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.deliveryChannel = ch;
+  document.getElementById('delivery-email-field').style.display = ch==='email' ? 'block' : 'none';
+  document.getElementById('delivery-phone-field').style.display = ch==='phone' ? 'block' : 'none';
+}
+
+function confirmDelivery() {
+  if (!state.deliveryFormat) { toast('Please select an output format.','warning'); return; }
+  if (!state.deliveryChannel) { toast('Please select a delivery channel.','warning'); return; }
+  closeModal('modal-delivery');
+  toast(`Your documents are being prepared as ${state.deliveryFormat} and sent via ${state.deliveryChannel}. We'll be in touch shortly! 🚀`, 'success');
+  if (state.deliveryChannel === 'chat') {
+    showSection('dashboard');
+    switchTabById('tab-chat');
+    setTimeout(() => {
+      addBotMessage(`Great news! 🎉 Here's what I've prepared for you as a ${state.deliveryFormat} document. Your order <strong>${state.currentAdminOrder?.id}</strong> output is ready. Since you chose chat delivery, our agent will paste the completed documents here within the next few minutes. In the meantime — is there anything else I can help you with today? We have 7 more services available! 😊`);
+      setTimeout(() => addBotMessage(`Also, would you like to request another service? Just tap the button below or visit our <a href="#" onclick="showSection('services')" style="color:var(--gold)">Services page</a> anytime. Thank you so much for choosing Dutchkem Ventures ServiceMart — it truly means a lot to us! 🙏`), 1500);
+    }, 800);
+  }
+}
+
+// =================== CHAT ===================
+const BOT_GREETINGS = [
+  "Hello there! 👋 Welcome to Dutchkem Ventures ServiceMart. I'm your dedicated service assistant. How can I make your business better today?",
+  "We offer 8 expert services — from business registration to HR documents. What can I help you with?"
+];
+
+function initChat() {
+  const container = document.getElementById('chat-messages');
+  BOT_GREETINGS.forEach((msg, i) => setTimeout(() => addBotMessage(msg), i * 1000));
+}
+
+function addBotMessage(msg) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<div class="chat-avatar bot-avatar"><i class="fas fa-gem" style="font-size:13px"></i></div><div class="chat-bubble">${msg}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function addUserMessage(msg) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg user';
+  div.innerHTML = `<div class="chat-avatar user-avatar"><i class="fas fa-user" style="font-size:12px"></i></div><div class="chat-bubble user-msg">${msg}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  addUserMessage(msg);
+  input.value = '';
+  setTimeout(() => {
+    const lower = msg.toLowerCase();
+    let reply = '';
+    if (lower.includes('service') || lower.includes('offer') || lower.includes('what'))
+      reply = "We offer 8 professional services: Business Registration, Legal Document Drafting, Business Plan Writing, Financial Projections, Brand Strategy, Business Proposal Writing, Market Research, and HR Documents. You can see them all on our <a href='#' onclick=\"showSection('services')\" style='color:var(--gold)'>Services page</a>. Which one interests you? 😊";
+    else if (lower.includes('price') || lower.includes('cost') || lower.includes('how much'))
+      reply = "Our prices range from ₦12,000 to ₦25,000 per service. And here's the best part — if you choose 3 or more services, you automatically get a <strong style='color:var(--gold)'>20% bundle discount</strong>! Shall I walk you through the options?";
+    else if (lower.includes('payment') || lower.includes('pay') || lower.includes('opay'))
+      reply = "Payment is simple and secure! You transfer to our OPay account (Oladotun Alabi, 812116102), upload your proof of payment, and our team verifies it within 2–6 hours. No third-party payment gateways — just straightforward and transparent.";
+    else if (lower.includes('how long') || lower.includes('delivery') || lower.includes('time'))
+      reply = "Once your payment is verified, your documents are typically delivered within <strong style='color:var(--gold)'>24–48 hours</strong>, depending on complexity. We can send them to your email, phone, or right here in this chat — your choice!";
+    else if (lower.includes('thank'))
+      reply = "You're so welcome! It's genuinely our pleasure to serve you. 😊 Is there anything else I can help you with today?";
+    else if (lower.includes('yes') || lower.includes('another'))
+      reply = "Wonderful! Let's get started on your next service. Head over to our <a href='#' onclick=\"showSection('services')\" style='color:var(--gold)'>Services page</a> and pick what you need. Remember — 3+ services = 20% off! 🎉";
+    else if (lower.includes('no') || lower.includes('done') || lower.includes('finish'))
+      reply = "No problem at all! It was truly a pleasure working with you. 🙏 Whenever you need us again, we'll be right here. Take care and wishing you all the best with your business! — Dutchkem Ventures Team ✨";
+    else
+      reply = "That's a great question! Let me help you with that. Could you tell me a little more about what you're looking for? Whether it's a business document, legal paper, or financial report — we've most likely got you covered. 😊";
+    addBotMessage(reply);
+  }, 800);
+}
+
+// =================== PROFILE ===================
+async function saveProfile() {
+  if (!state.user) return;
+  const name = document.getElementById('profile-name').value;
+  const phone = document.getElementById('profile-phone').value;
+  
+  try {
+    const { error } = await _supabase
+      .from('profiles')
+      .update({ full_name: name, phone })
+      .eq('id', state.user.id);
+    if (error) throw error;
+    
+    state.user.name = name;
+    state.user.phone = phone;
+    document.getElementById('nav-username').textContent = name;
+    toast('Profile updated successfully! ✓', 'success');
+  } catch (err) {
+    toast('Error saving profile: ' + err.message, 'warning');
+  }
+}
+
+// =================== UTILITIES ===================
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function printReceipt() { window.print(); }
+
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.style.color='rgba(250,246,238,0.5)'; });
+  btn.classList.add('active'); btn.style.color='var(--gold)';
+  ['tab-orders','tab-chat','tab-profile'].forEach(t => {
+    document.getElementById(t).style.display = t===tabId ? 'block' : 'none';
+  });
+  if (tabId === 'tab-chat') {
+    const msgs = document.getElementById('chat-messages');
+    if (!msgs.hasChildNodes()) initChat();
+  }
+}
+
+function switchTabById(tabId) {
+  const btns = document.querySelectorAll('.tab-btn');
+  ['tab-orders','tab-chat','tab-profile'].forEach((t,i) => {
+    document.getElementById(t).style.display = t===tabId ? 'block' : 'none';
+    btns[i]?.classList.toggle('active', t===tabId);
+    if (btns[i]) btns[i].style.color = t===tabId ? 'var(--gold)' : 'rgba(250,246,238,0.5)';
+  });
+}
+
+let toastTimer;
+function toast(msg, type='info') {
+  clearTimeout(toastTimer);
+  const el = document.getElementById('toast');
+  const icons = { success:'fa-check-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
+  const colors = { success:'#5DCAA5', warning:'var(--gold)', info:'#85B7EB' };
+  el.innerHTML = `<i class="fas ${icons[type]||icons.info}" style="color:${colors[type]||colors.info};font-size:16px"></i><span>${msg}</span>`;
+  el.style.display='flex';
+  toastTimer = setTimeout(() => el.style.display='none', 4500);
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+// Drag & drop for file upload
+const uz = document.getElementById('upload-zone');
+if (uz) {
+  uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('drag-over'); });
+  uz.addEventListener('dragleave', () => uz.classList.remove('drag-over'));
+  uz.addEventListener('drop', e => {
+    e.preventDefault(); uz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) { state.proofFile=file; document.getElementById('upload-filename').textContent=file.name; document.getElementById('upload-preview').style.display='block'; }
+  });
+}
+</script>
+</body>
+</html>
